@@ -3,6 +3,27 @@ KVoiceWalk tries to create new [Kokoro](https://github.com/hexgrad/kokoro) voice
 
 This project is only possible because of the incredible work of projects like [Kokoro](https://github.com/hexgrad/kokoro) and [Resemblyzer](https://github.com/resemble-ai/Resemblyzer). I was struck by how small the Kokoro style tensors were and wondered if it would be possible to "evolve" new voice tensors more similar to target audio. The results are promising and this scoring method could be a valid option for a future genetic algorithm. I wanted more voice options for Kokoro, and now I have them.
 
+## 🆕 NEW: Web UI with Gradio 6!
+
+KVoiceWalk now includes a fully functional web interface built with Gradio 6! 
+
+### Launch the Web UI:
+```bash
+uv run web_ui.py
+```
+
+For public sharing:
+```bash
+uv run web_ui.py --share
+```
+
+The Web UI includes:
+- 🎵 **Voice Testing**: Test voice files with custom text
+- 🔬 **Advanced Voice Cloning**: Full control over all parameters
+- ⚡ **Quick Clone**: Automatic transcription + voice cloning in one step
+- 📝 **Transcription**: Convert audio to text
+- ❓ **Built-in Help**: Comprehensive usage guide
+
 ## Example Audio
 #### Target Audio File (Generated Using A different text to speech library)
 
@@ -25,7 +46,16 @@ uv venv --python 3.10
 source .venv/bin/activate # '.venv\Scripts\activate' if Windows
 uv sync
 ```
-## Usage
+
+## Quick Start with Web UI (Recommended)
+2. Launch the Gradio web interface:
+```bash
+uv run web_ui.py
+```
+
+Open your browser to `http://localhost:7860` and enjoy the intuitive interface!
+
+## Command Line Usage
 2. KVoiceWalk expects target audio files to be in Mono 24000 Hz sample rate wav file format; ideally 20-30 seconds of a single speaker. However if needed, Kvoicewalk will check and convert target audio files into the proper format. If you would prefer to prepare them beforehand, you can this use this example ffmpeg command. 
 
 ```bash

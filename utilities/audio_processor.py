@@ -23,7 +23,7 @@ def convert_to_wav_mono_24k(audio_path: Path) -> Path:
                 # Convert to mono if needed
                 if f.channels > 1:
                     converted_audio_data = np.mean(audio_data, axis=1)
-                    print("Cenverted to Mono...")
+                    print("Converted to Mono...")
                 else:
                     converted_audio_data = audio_data
 

@@ -12,4 +12,8 @@ dependencies = [
     "soundfile>=0.13.1",
     "torch>=2.7.0",
     "tqdm>=4.67.1",
+    "librosa>=0.10.0",
+    "scipy>=1.11.0",
+    "faster-whisper>=1.0.0",
+    "gradio>=6.0.0",
 ]

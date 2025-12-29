@@ -71,8 +71,9 @@ def main():
         file_paths = [os.path.join(args.voice_folder, f) for f in os.listdir(args.voice_folder) if f.endswith('.pt')]
         voices = load_multiple_voices(file_paths, auto_allow_unsafe=False) # Set True if you prefer to bypass Allow/Repair/Reject voice file menu
 
-        with open("voices.bin", "wb") as f:
-            np.savez(f,**voices)
+        output_path = os.path.join(args.voice_folder, "voices.npz")
+        np.savez(output_path, **voices)
+        print(f"Voices exported to: {output_path}")
 
         return
 
@@ -167,7 +168,9 @@ def main():
 
         speech_generator = SpeechGenerator()
         audio = speech_generator.generate_audio(args.target_text, args.test_voice)
-        sf.write(args.output_name, audio, 24000)
+        output_path = args.output_name if args.output_name.endswith('.wav') else f"{args.output_name}.wav"
+        sf.write(output_path, audio, 24000)
+        print(f"Audio saved to: {output_path}")
     else:
         # Random walk mode
         if not args.target_audio:

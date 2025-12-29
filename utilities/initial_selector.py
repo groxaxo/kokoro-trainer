@@ -48,13 +48,15 @@ class InitialSelector:
 
     def interpolate_search(self,population_limit: int) -> list[torch.Tensor]:
         """Finds an initial population of voices more optimal because of interpolated features"""
+        # First, score all voices (reuse from top_performer if already done)
         for voice in self.voices:
-            audio = self.speech_generator.generate_audio(self.target_text, voice["voice"])
-            audio2 = self.speech_generator.generate_audio(self.other_text, voice["voice"])
-            target_similarity = self.fitness_scorer.target_similarity(audio)
-            results = self.fitness_scorer.hybrid_similarity(audio,audio2,target_similarity)
-            print(f'{voice["name"]:<20} Target Sim:{results["target_similarity"]:.3f}, Self Sim:{results["self_similarity"]:.3f}, Feature Sim:{results["feature_similarity"]:.2f}, Score:{results["score"]:.2f}')
-            voice["results"] = results
+            if "results" not in voice:
+                audio = self.speech_generator.generate_audio(self.target_text, voice["voice"])
+                audio2 = self.speech_generator.generate_audio(self.other_text, voice["voice"])
+                target_similarity = self.fitness_scorer.target_similarity(audio)
+                results = self.fitness_scorer.hybrid_similarity(audio,audio2,target_similarity)
+                print(f'{voice["name"]:<20} Target Sim:{results["target_similarity"]:.3f}, Self Sim:{results["self_similarity"]:.3f}, Feature Sim:{results["feature_similarity"]:.2f}, Score:{results["score"]:.2f}')
+                voice["results"] = results
 
         voices = sorted(self.voices, key=lambda x: x["results"]["score"],reverse=True)
         voices = voices[:population_limit]
