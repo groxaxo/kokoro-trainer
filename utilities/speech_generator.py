@@ -2,15 +2,30 @@ import warnings
 
 import numpy as np
 import torch
-from kokoro import KPipeline
+
+# Try to import from original kokoro, fallback to kokoro_onnx
+try:
+    from kokoro import KPipeline
+    USING_ONNX = False
+except ImportError:
+    USING_ONNX = True
+    print("⚠️  kokoro package not found. Some features may be limited.")
+    print("   Install with: pip install kokoro")
 
 
 class SpeechGenerator:
     def __init__(self):
+        if USING_ONNX:
+            raise ImportError(
+                "The 'kokoro' package is required but not installed.\n"
+                "Please install it with: pip install kokoro\n"
+                "or use uv sync to install all dependencies."
+            )
+        
         surpressWarnings()
-        self.pipeline = KPipeline(lang_code="a",repo_id='hexgrad/Kokoro-82M')
+        self.pipeline = KPipeline(lang_code="a", repo_id='hexgrad/Kokoro-82M')
 
-    def generate_audio(self, text: str, voice: torch.Tensor,speed: float = 1.0) -> np.typing.NDArray[np.float32]:
+    def generate_audio(self, text: str, voice: torch.Tensor, speed: float = 1.0) -> np.typing.NDArray[np.float32]:
         generator = self.pipeline(text, voice, speed)
         audio = []
         for gs, ps, chunk in generator:

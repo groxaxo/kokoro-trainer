@@ -22,8 +22,16 @@ from utilities.pytorch_sanitizer import load_voice_safely
 
 class WebUI:
     def __init__(self):
-        self.speech_generator = SpeechGenerator()
+        # Lazy initialization - only create generators when needed
+        self._speech_generator = None
         self.transcriber = None
+    
+    @property
+    def speech_generator(self):
+        """Lazy load speech generator only when needed"""
+        if self._speech_generator is None:
+            self._speech_generator = SpeechGenerator()
+        return self._speech_generator
         
     def get_transcriber(self):
         """Lazy load transcriber only when needed"""
