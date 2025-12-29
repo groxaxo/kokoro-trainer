@@ -10,8 +10,18 @@ from resemblyzer import preprocess_wav, VoiceEncoder
 
 
 class FitnessScorer:
+    # Class-level shared encoder to avoid reinitializing for each instance
+    _shared_encoder = None
+    
+    @classmethod
+    def get_encoder(cls):
+        """Get or create shared voice encoder instance"""
+        if cls._shared_encoder is None:
+            cls._shared_encoder = VoiceEncoder()
+        return cls._shared_encoder
+    
     def __init__(self,target_path: str):
-        self.encoder = VoiceEncoder()
+        self.encoder = self.get_encoder()
         self.target_audio, _ = sf.read(target_path,dtype="float32")
         self.target_wav = preprocess_wav(target_path,source_sr=24000)
         self.target_embed = self.encoder.embed_utterance(self.target_wav)
@@ -50,7 +60,12 @@ class FitnessScorer:
         # Normalized feature difference compared to target features
         penalty = 0.0
         for key, value in features.items():
-            diff = abs((value - self.target_features[key])/self.target_features[key])
+            target_value = self.target_features[key]
+            # Prevent division by zero
+            if target_value != 0:
+                diff = abs((value - target_value) / target_value)
+            else:
+                diff = abs(value)
             penalty += diff
         return penalty
 

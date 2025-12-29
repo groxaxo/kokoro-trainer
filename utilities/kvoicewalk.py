@@ -15,6 +15,12 @@ from utilities.speech_generator import SpeechGenerator
 from utilities.voice_generator import VoiceGenerator
 
 
+def clear_gpu_memory():
+    """Clear GPU cache to optimize memory usage"""
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+
+
 class KVoiceWalk:
     def __init__(self, target_audio: Path, target_text: str, other_text: str, voice_folder: str,
                  interpolate_start: bool, population_limit: int, starting_voice: str, output_name: str) -> None:
@@ -73,6 +79,9 @@ class KVoiceWalk:
                 sf.write(
                     f'{results_dir}/{self.output_name}_{i}_{best_results["score"]:.2f}_{best_results["target_similarity"]:.2f}_{self.target_audio.stem}.wav',
                     best_results["audio"], 24000)
+                # Clear GPU memory periodically
+                if i % 100 == 0:
+                    clear_gpu_memory()
                 # TODO: Add config file for easy restarting runs from last save point
 
         # Print Final Results for Random Walk
