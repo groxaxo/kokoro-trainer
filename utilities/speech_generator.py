@@ -3,7 +3,7 @@ import warnings
 import numpy as np
 import torch
 
-# Try to import from original kokoro, fallback to kokoro_onnx
+# Try to import the kokoro package
 try:
     from kokoro import KPipeline
     USING_ONNX = False
@@ -22,7 +22,7 @@ class SpeechGenerator:
                 "or use uv sync to install all dependencies."
             )
         
-        surpressWarnings()
+        suppressWarnings()
         self.pipeline = KPipeline(lang_code="a", repo_id='hexgrad/Kokoro-82M')
 
     def generate_audio(self, text: str, voice: torch.Tensor, speed: float = 1.0) -> np.typing.NDArray[np.float32]:
@@ -32,8 +32,8 @@ class SpeechGenerator:
             audio.append(chunk)
         return np.concatenate(audio)
 
-def surpressWarnings():
-    # Surpress all these warnings showing up from libraries cluttering the console
+def suppressWarnings():
+    # Suppress all these warnings showing up from libraries cluttering the console
     warnings.filterwarnings(
         "ignore",
         message=".*RNN module weights are not part of single contiguous chunk of memory.*",
