@@ -55,21 +55,24 @@ class SpanishTextNormalizer:
         if len(words) == 0:
             return False, 0.0
         
-        # Check for Spanish-specific characters
-        spanish_chars = sum(1 for c in text if c in 'áéíóúñü')
+        # Check for Spanish-specific characters (strong indicator)
+        spanish_chars = sum(1 for c in text if c in 'áéíóúñü¿¡')
         
         # Check for common Spanish words
         spanish_word_count = 0
         for word_list in SPANISH_PATTERNS.values():
             spanish_word_count += sum(1 for word in words if word in word_list)
         
-        # Calculate confidence
-        char_score = min(spanish_chars / len(text) * 10, 0.3)  # Up to 30% weight
-        word_score = min(spanish_word_count / len(words), 0.7)  # Up to 70% weight
+        # Calculate confidence with improved weights
+        char_score = min(spanish_chars / max(len(text), 1) * 20, 0.5)  # Up to 50% weight for accents
+        word_score = min(spanish_word_count / max(len(words), 1) * 2, 0.5)  # Up to 50% weight for common words
         
         confidence = char_score + word_score
         
-        return confidence > 0.3, confidence
+        # Lower threshold for short text if Spanish characters present
+        threshold = 0.2 if spanish_chars > 0 else 0.3
+        
+        return confidence > threshold, confidence
     
     def normalize(self, text: str, preserve_accents: bool = True) -> str:
         """
