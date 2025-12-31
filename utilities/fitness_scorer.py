@@ -18,6 +18,13 @@ try:
 except ImportError:
     ADVANCED_MODELS_AVAILABLE = False
 
+# Import Spanish language utilities
+try:
+    from utilities.spanish_utils import SpanishVoiceScorer
+    SPANISH_UTILS_AVAILABLE = True
+except ImportError:
+    SPANISH_UTILS_AVAILABLE = False
+
 
 class FitnessScorer:
     # Class-level shared encoder to avoid reinitializing for each instance
@@ -83,6 +90,10 @@ class FitnessScorer:
             self.target_wavlm_embed = None
         
         self.target_text = None  # Will be set if using advanced scoring
+        
+        # Initialize Spanish voice scorer if available
+        self.spanish_scorer = SpanishVoiceScorer() if SPANISH_UTILS_AVAILABLE else None
+        self.is_spanish_mode = False  # Will be set when Spanish text is detected
 
     def hybrid_similarity(self, audio: NDArray[np.float32], audio2: NDArray[np.float32],target_similarity: float):
         features = self.extract_features(audio)
@@ -98,6 +109,12 @@ class FitnessScorer:
         # Playing around with the weights can greatly affect scoring and random walk behavior
         weights = [0.48,0.5,0.02]
         score = (np.sum(weights) / np.sum(np.array(weights) / np.array(values))) * 100.0
+        
+        # Apply Spanish language bonus if applicable
+        if self.is_spanish_mode and self.spanish_scorer and self.target_text:
+            spanish_bonus = self.spanish_scorer.get_spanish_quality_bonus(self.target_text, features)
+            # Add bonus as a percentage increase (up to 5% improvement)
+            score = score * (1.0 + spanish_bonus * 0.05)
 
         return {
             "score": score,

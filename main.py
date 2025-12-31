@@ -58,6 +58,9 @@ def main():
     group_walk.add_argument("--use_advanced_scoring",
                           help="Use WavLM/Whisper scoring (requires transformers, jiwer)",
                           action='store_true')
+    group_walk.add_argument("--lang_code", type=str,
+                          help="Language code for TTS (a=auto, es=Spanish, en=English)",
+                          default="a")
 
     # Arguments for test mode
     group_test = parser.add_argument_group('Test Mode')
@@ -198,7 +201,8 @@ def main():
                         args.population_limit,
                          args.starting_voice,
                          args.output_name,
-                         args.use_super_seed)
+                         args.use_super_seed,
+                         args.lang_code)
         
         # Choose optimization method
         if args.use_cma_es:

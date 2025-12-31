@@ -15,6 +15,13 @@ from utilities.path_router import OUT_DIR
 from utilities.speech_generator import SpeechGenerator
 from utilities.voice_generator import VoiceGenerator
 
+# Import Spanish language utilities
+try:
+    from utilities.spanish_utils import SpanishTextNormalizer, SpanishVoiceScorer
+    SPANISH_UTILS_AVAILABLE = True
+except ImportError:
+    SPANISH_UTILS_AVAILABLE = False
+
 # Import CMA-ES if available
 try:
     import cma
@@ -36,11 +43,36 @@ CMA_SHORT_TEXT_LENGTH = 200  # Character limit for text during optimization
 class KVoiceWalk:
     def __init__(self, target_audio: Path, target_text: str, other_text: str, voice_folder: str,
                  interpolate_start: bool, population_limit: int, starting_voice: str, output_name: str,
-                 use_super_seed: bool = False) -> None:
+                 use_super_seed: bool = False, lang_code: str = "a") -> None:
         try:
             self.target_audio = target_audio
             self.target_text = target_text
             self.other_text = other_text
+            
+            # Detect if we're working with Spanish text
+            self.is_spanish_mode = False
+            if SPANISH_UTILS_AVAILABLE:
+                normalizer = SpanishTextNormalizer()
+                is_spanish, confidence = normalizer.is_spanish_text(target_text)
+                if is_spanish and confidence > 0.5:
+                    self.is_spanish_mode = True
+                    print(f"🇪🇸 Spanish language detected (confidence: {confidence:.2%})")
+                    print("   Enabling Spanish-optimized training parameters...")
+                    
+                    # Get Spanish-specific recommendations
+                    spanish_scorer = SpanishVoiceScorer()
+                    recommendations = spanish_scorer.get_latin_american_recommendations(target_text)
+                    
+                    print("\n📋 Training Recommendations for Latin American Spanish:")
+                    for tip in recommendations['quality_tips']:
+                        print(f"   {tip}")
+                    
+                    if recommendations['training_params']:
+                        print("\n⚙️  Recommended parameters:")
+                        for param, value in recommendations['training_params'].items():
+                            print(f"   --{param} {value}")
+                    print()
+            
             self.initial_selector = InitialSelector(str(target_audio), target_text, other_text,
                                                     voice_folder=voice_folder)
             voices: list[torch.Tensor] = []
@@ -51,11 +83,16 @@ class KVoiceWalk:
             else:
                 voices = self.initial_selector.top_performer_start(population_limit)
             
-            self.speech_generator = SpeechGenerator()
+            # Use language-aware speech generator
+            self.speech_generator = SpeechGenerator(lang_code=lang_code)
             self.fitness_scorer = FitnessScorer(str(target_audio))
             
             # Set target text for advanced scoring
             self.fitness_scorer.target_text = target_text
+            
+            # Enable Spanish mode in fitness scorer
+            if self.is_spanish_mode:
+                self.fitness_scorer.is_spanish_mode = True
             
             self.voice_generator = VoiceGenerator(voices, starting_voice)
             
