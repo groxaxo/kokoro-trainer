@@ -46,6 +46,40 @@ class InitialSelector:
         tensors = [voice["voice"]for voice in voices]
         return tensors
 
+    def get_super_seed(self, top_k: int = 5) -> torch.Tensor:
+        """
+        Get super-seed initialization by averaging top K voices.
+        This provides a more robust starting point than a single voice.
+        
+        Args:
+            top_k: Number of top voices to average (default: 5)
+            
+        Returns:
+            torch.Tensor: Averaged voice vector from top K voices
+        """
+        # Score all voices if not already done
+        for voice in self.voices:
+            if "results" not in voice:
+                audio = self.speech_generator.generate_audio(self.target_text, voice["voice"])
+                audio2 = self.speech_generator.generate_audio(self.other_text, voice["voice"])
+                target_similarity = self.fitness_scorer.target_similarity(audio)
+                results = self.fitness_scorer.hybrid_similarity(audio, audio2, target_similarity)
+                voice["results"] = results
+        
+        # Sort by score and get top K
+        sorted_voices = sorted(self.voices, key=lambda x: x["results"]["score"], reverse=True)
+        top_voices = sorted_voices[:top_k]
+        
+        print(f"Combining top {top_k} voices for super-seed:")
+        for voice in top_voices:
+            print(f'  {voice["name"]:<30} Score:{voice["results"]["score"]:.2f}')
+        
+        # Stack and average the vectors
+        vectors = torch.stack([v["voice"] for v in top_voices])
+        mean_vector = torch.mean(vectors, dim=0)
+        
+        return mean_vector
+
     def interpolate_search(self,population_limit: int) -> list[torch.Tensor]:
         """Finds an initial population of voices more optimal because of interpolated features"""
         # First, score all voices (reuse from top_performer if already done)

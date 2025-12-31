@@ -46,6 +46,18 @@ def main():
                           help="Path to the target audio file. Must be 24000 Hz mono wav file.")
     group_walk.add_argument("--starting_voice", type=str,
                           help="Path to the starting voice tensor")
+    group_walk.add_argument("--use_super_seed", 
+                          help="Use super-seed initialization (average of top 5 voices)",
+                          action='store_true')
+    group_walk.add_argument("--use_cma_es",
+                          help="Use CMA-ES optimization instead of random walk",
+                          action='store_true')
+    group_walk.add_argument("--cma_sigma", type=float,
+                          help="CMA-ES initial step size (default: 0.1)",
+                          default=0.1)
+    group_walk.add_argument("--use_advanced_scoring",
+                          help="Use WavLM/Whisper scoring (requires transformers, jiwer)",
+                          action='store_true')
 
     # Arguments for test mode
     group_test = parser.add_argument_group('Test Mode')
@@ -185,8 +197,20 @@ def main():
                         args.interpolate_start,
                         args.population_limit,
                          args.starting_voice,
-                         args.output_name)
-        ktb.random_walk(args.step_limit)
+                         args.output_name,
+                         args.use_super_seed)
+        
+        # Choose optimization method
+        if args.use_cma_es:
+            print("Using CMA-ES optimization")
+            ktb.cma_es_optimization(
+                args.step_limit,
+                sigma=args.cma_sigma,
+                use_advanced_scoring=args.use_advanced_scoring
+            )
+        else:
+            print("Using random walk optimization")
+            ktb.random_walk(args.step_limit)
 
 if __name__ == "__main__":
     main()
