@@ -44,6 +44,21 @@ class KVoiceWalk:
     def __init__(self, target_audio: Path, target_text: str, other_text: str, voice_folder: str,
                  interpolate_start: bool, population_limit: int, starting_voice: str, output_name: str,
                  use_super_seed: bool = False, lang_code: str = "a") -> None:
+        """
+        Initialize KVoiceWalk for voice cloning.
+        
+        Args:
+            target_audio: Path to target audio file (24kHz mono WAV)
+            target_text: Text contained in the target audio
+            other_text: Text for self-similarity comparison
+            voice_folder: Path to folder containing voice files
+            interpolate_start: Whether to use interpolation search
+            population_limit: Number of top voices to use
+            starting_voice: Path to specific starting voice (optional)
+            output_name: Base name for output files
+            use_super_seed: Whether to use super-seed initialization (average of top 5)
+            lang_code: Language code for TTS ('a'=auto-detect, 'es'=Spanish, 'en'=English)
+        """
         try:
             self.target_audio = target_audio
             self.target_text = target_text

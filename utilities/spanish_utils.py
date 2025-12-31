@@ -6,7 +6,7 @@ with particular focus on Latin American Spanish characteristics.
 """
 
 import re
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Any
 import numpy as np
 
 
@@ -27,6 +27,14 @@ SPANISH_PATTERNS = {
     'pronouns': ['yo', 'tú', 'él', 'ella', 'nosotros', 'nosotras', 'vosotros', 'vosotras', 'ellos', 'ellas'],
     'common_words': ['es', 'no', 'sí', 'de', 'que', 'en', 'por', 'para', 'con', 'su', 'mi', 'tu']
 }
+
+# Detection thresholds and weights
+SPANISH_CHAR_WEIGHT = 20  # Multiplier for Spanish character ratio
+SPANISH_CHAR_MAX_SCORE = 0.5  # Maximum score contribution from Spanish characters
+SPANISH_WORD_WEIGHT = 2  # Multiplier for Spanish word ratio
+SPANISH_WORD_MAX_SCORE = 0.5  # Maximum score contribution from Spanish words
+SPANISH_DETECTION_THRESHOLD_WITH_CHARS = 0.2  # Lower threshold when Spanish chars present
+SPANISH_DETECTION_THRESHOLD_DEFAULT = 0.3  # Default threshold
 
 
 class SpanishTextNormalizer:
@@ -64,13 +72,13 @@ class SpanishTextNormalizer:
             spanish_word_count += sum(1 for word in words if word in word_list)
         
         # Calculate confidence with improved weights
-        char_score = min(spanish_chars / max(len(text), 1) * 20, 0.5)  # Up to 50% weight for accents
-        word_score = min(spanish_word_count / max(len(words), 1) * 2, 0.5)  # Up to 50% weight for common words
+        char_score = min(spanish_chars / max(len(text), 1) * SPANISH_CHAR_WEIGHT, SPANISH_CHAR_MAX_SCORE)
+        word_score = min(spanish_word_count / max(len(words), 1) * SPANISH_WORD_WEIGHT, SPANISH_WORD_MAX_SCORE)
         
         confidence = char_score + word_score
         
         # Lower threshold for short text if Spanish characters present
-        threshold = 0.2 if spanish_chars > 0 else 0.3
+        threshold = SPANISH_DETECTION_THRESHOLD_WITH_CHARS if spanish_chars > 0 else SPANISH_DETECTION_THRESHOLD_DEFAULT
         
         return confidence > threshold, confidence
     
@@ -120,7 +128,7 @@ class SpanishTextNormalizer:
         
         return result
     
-    def validate_for_tts(self, text: str) -> Dict[str, any]:
+    def validate_for_tts(self, text: str) -> Dict[str, Any]:
         """
         Validate text for Spanish TTS
         
@@ -287,7 +295,7 @@ class SpanishVoiceScorer:
         
         return min(bonus, 1.0)
     
-    def get_latin_american_recommendations(self, text: str) -> Dict[str, any]:
+    def get_latin_american_recommendations(self, text: str) -> Dict[str, Any]:
         """
         Get recommendations specific to Latin American Spanish training
         

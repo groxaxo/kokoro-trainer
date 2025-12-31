@@ -25,6 +25,9 @@ try:
 except ImportError:
     SPANISH_UTILS_AVAILABLE = False
 
+# Spanish scoring constants
+SPANISH_QUALITY_BONUS_MULTIPLIER = 0.05  # Spanish bonus contributes up to 5% score improvement
+
 
 class FitnessScorer:
     # Class-level shared encoder to avoid reinitializing for each instance
@@ -113,8 +116,8 @@ class FitnessScorer:
         # Apply Spanish language bonus if applicable
         if self.is_spanish_mode and self.spanish_scorer and self.target_text:
             spanish_bonus = self.spanish_scorer.get_spanish_quality_bonus(self.target_text, features)
-            # Add bonus as a percentage increase (up to 5% improvement)
-            score = score * (1.0 + spanish_bonus * 0.05)
+            # Add bonus as a percentage increase (configurable via constant)
+            score = score * (1.0 + spanish_bonus * SPANISH_QUALITY_BONUS_MULTIPLIER)
 
         return {
             "score": score,
