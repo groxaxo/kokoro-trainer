@@ -29,6 +29,10 @@ def clear_gpu_memory():
         torch.cuda.empty_cache()
 
 
+# Constants for CMA-ES optimization
+CMA_SHORT_TEXT_LENGTH = 200  # Character limit for text during optimization
+
+
 class KVoiceWalk:
     def __init__(self, target_audio: Path, target_text: str, other_text: str, voice_folder: str,
                  interpolate_start: bool, population_limit: int, starting_voice: str, output_name: str,
@@ -145,6 +149,9 @@ class KVoiceWalk:
         best_voice = None
         iteration = 0
         
+        # Track whether we're using advanced scoring (for fallback handling)
+        using_advanced_scoring = use_advanced_scoring
+        
         print(f"Initial vector shape: {initial_params.shape}")
         print(f"Sigma: {sigma}")
         
@@ -161,17 +168,17 @@ class KVoiceWalk:
                 
                 # Generate short audio sample for evaluation (faster)
                 # Use a shorter text for speed during optimization
-                short_text = self.target_text[:200] if len(self.target_text) > 200 else self.target_text
+                short_text = self.target_text[:CMA_SHORT_TEXT_LENGTH] if len(self.target_text) > CMA_SHORT_TEXT_LENGTH else self.target_text
                 audio = self.speech_generator.generate_audio(short_text, style_vector)
                 
                 # Calculate loss
-                if use_advanced_scoring:
+                if using_advanced_scoring:
                     try:
                         loss = self.fitness_scorer.get_complex_score(audio, short_text)
                     except Exception as e:
                         print(f"Error in advanced scoring: {e}")
-                        print("Falling back to standard scoring")
-                        use_advanced_scoring = False
+                        print("Falling back to standard scoring for this run")
+                        using_advanced_scoring = False
                         # Fall back to standard scoring
                         results = self.score_voice(style_vector)
                         loss = -results["score"]  # Negate for minimization
@@ -197,7 +204,7 @@ class KVoiceWalk:
                 full_audio = self.speech_generator.generate_audio(self.target_text, best_voice)
                 
                 # Get detailed scores for logging
-                if use_advanced_scoring:
+                if using_advanced_scoring:
                     # For advanced scoring, also compute traditional scores for comparison
                     trad_results = self.score_voice(best_voice)
                     print(f'Iteration:{iteration:<4} Loss:{-best_loss:.4f} (CMA) | '

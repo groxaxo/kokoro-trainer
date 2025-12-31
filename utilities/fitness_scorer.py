@@ -13,6 +13,7 @@ from resemblyzer import preprocess_wav, VoiceEncoder
 try:
     from transformers import Wav2Vec2FeatureExtractor, WavLMForXVector, WhisperProcessor, WhisperForConditionalGeneration
     import jiwer
+    import torchaudio
     ADVANCED_MODELS_AVAILABLE = True
 except ImportError:
     ADVANCED_MODELS_AVAILABLE = False
@@ -67,9 +68,8 @@ class FitnessScorer:
         self.whisper_processor, self.whisper_model = self.get_whisper_models()
         
         # Compute target WavLM embedding if available
-        if self.wavlm_extractor is not None and self.wavlm_model is not None:
+        if ADVANCED_MODELS_AVAILABLE and self.wavlm_extractor is not None and self.wavlm_model is not None:
             # Resample to 16kHz for WavLM
-            import torchaudio
             target_16k = torchaudio.functional.resample(
                 torch.tensor(self.target_audio).unsqueeze(0), 
                 orig_freq=24000, 
@@ -122,7 +122,6 @@ class FitnessScorer:
             raise RuntimeError("Advanced models not available. Install: transformers, jiwer, torchaudio")
         
         # Resample to 16kHz for models
-        import torchaudio
         audio_16k = torchaudio.functional.resample(
             torch.tensor(generated_audio).unsqueeze(0), 
             orig_freq=24000, 
