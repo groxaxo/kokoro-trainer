@@ -5,13 +5,27 @@ import librosa
 import numpy as np
 import scipy.stats
 import soundfile as sf
+import torch
 from numpy._typing import NDArray
 from resemblyzer import preprocess_wav, VoiceEncoder
+
+# Import models for advanced scoring
+try:
+    from transformers import Wav2Vec2FeatureExtractor, WavLMForXVector, WhisperProcessor, WhisperForConditionalGeneration
+    import jiwer
+    import torchaudio
+    ADVANCED_MODELS_AVAILABLE = True
+except ImportError:
+    ADVANCED_MODELS_AVAILABLE = False
 
 
 class FitnessScorer:
     # Class-level shared encoder to avoid reinitializing for each instance
     _shared_encoder = None
+    _shared_wavlm_extractor = None
+    _shared_wavlm_model = None
+    _shared_whisper_processor = None
+    _shared_whisper_model = None
     
     @classmethod
     def get_encoder(cls):
@@ -20,12 +34,55 @@ class FitnessScorer:
             cls._shared_encoder = VoiceEncoder()
         return cls._shared_encoder
     
+    @classmethod
+    def get_wavlm_models(cls):
+        """Get or create shared WavLM models for speaker verification"""
+        if not ADVANCED_MODELS_AVAILABLE:
+            return None, None
+        
+        if cls._shared_wavlm_extractor is None:
+            cls._shared_wavlm_extractor = Wav2Vec2FeatureExtractor.from_pretrained('microsoft/wavlm-base-plus-sv')
+            cls._shared_wavlm_model = WavLMForXVector.from_pretrained('microsoft/wavlm-base-plus-sv')
+        return cls._shared_wavlm_extractor, cls._shared_wavlm_model
+    
+    @classmethod
+    def get_whisper_models(cls):
+        """Get or create shared Whisper models for speech recognition"""
+        if not ADVANCED_MODELS_AVAILABLE:
+            return None, None
+        
+        if cls._shared_whisper_processor is None:
+            cls._shared_whisper_processor = WhisperProcessor.from_pretrained("openai/whisper-tiny")
+            cls._shared_whisper_model = WhisperForConditionalGeneration.from_pretrained("openai/whisper-tiny")
+        return cls._shared_whisper_processor, cls._shared_whisper_model
+    
     def __init__(self,target_path: str):
         self.encoder = self.get_encoder()
         self.target_audio, _ = sf.read(target_path,dtype="float32")
         self.target_wav = preprocess_wav(target_path,source_sr=24000)
         self.target_embed = self.encoder.embed_utterance(self.target_wav)
         self.target_features = self.extract_features(self.target_audio)
+        
+        # Initialize advanced models if available
+        self.wavlm_extractor, self.wavlm_model = self.get_wavlm_models()
+        self.whisper_processor, self.whisper_model = self.get_whisper_models()
+        
+        # Compute target WavLM embedding if available
+        if ADVANCED_MODELS_AVAILABLE and self.wavlm_extractor is not None and self.wavlm_model is not None:
+            # Resample to 16kHz for WavLM
+            target_16k = torchaudio.functional.resample(
+                torch.tensor(self.target_audio).unsqueeze(0), 
+                orig_freq=24000, 
+                new_freq=16000
+            ).squeeze(0).numpy()
+            
+            inputs = self.wavlm_extractor(target_16k, return_tensors="pt", sampling_rate=16000)
+            with torch.no_grad():
+                self.target_wavlm_embed = self.wavlm_model(**inputs).embeddings
+        else:
+            self.target_wavlm_embed = None
+        
+        self.target_text = None  # Will be set if using advanced scoring
 
     def hybrid_similarity(self, audio: NDArray[np.float32], audio2: NDArray[np.float32],target_similarity: float):
         features = self.extract_features(audio)
@@ -48,6 +105,90 @@ class FitnessScorer:
             "self_similarity": self_similarity,
             "feature_similarity": feature_similarity
         }
+
+    def get_complex_score(self, generated_audio: NDArray[np.float32], target_text: str) -> float:
+        """
+        Calculate a composite score using WavLM, Whisper, and quality metrics.
+        This is the advanced scoring function for CMA-ES optimization.
+        
+        Args:
+            generated_audio: The audio array from Kokoro (24kHz mono)
+            target_text: The expected transcription text
+            
+        Returns:
+            float: Negative score (loss) for minimization
+        """
+        if not ADVANCED_MODELS_AVAILABLE:
+            raise RuntimeError("Advanced models not available. Install: transformers, jiwer, torchaudio")
+        
+        # Resample to 16kHz for models
+        audio_16k = torchaudio.functional.resample(
+            torch.tensor(generated_audio).unsqueeze(0), 
+            orig_freq=24000, 
+            new_freq=16000
+        ).squeeze(0).numpy()
+        
+        # --- Metric 1: WavLM Similarity (Identity) ---
+        inputs = self.wavlm_extractor(audio_16k, return_tensors="pt", sampling_rate=16000)
+        with torch.no_grad():
+            gen_embedding = self.wavlm_model(**inputs).embeddings
+        
+        # Cosine Similarity (Higher is better)
+        sim_score = torch.nn.functional.cosine_similarity(
+            gen_embedding, self.target_wavlm_embed
+        ).item()
+        
+        # --- Metric 2: Whisper WER (Intelligibility) ---
+        input_features = self.whisper_processor(
+            audio_16k, sampling_rate=16000, return_tensors="pt"
+        ).input_features
+        predicted_ids = self.whisper_model.generate(input_features)
+        transcription = self.whisper_processor.batch_decode(
+            predicted_ids, skip_special_tokens=True
+        )[0]
+        
+        # Calculate Word Error Rate (Lower is better)
+        wer_score = jiwer.wer(target_text, transcription)
+        
+        # --- Metric 3: Quality (Placeholder) ---
+        # For now, use a simple quality proxy based on audio characteristics
+        # In a real implementation, you would use NISQA or DNSMOS
+        quality_mos = self._predict_quality_proxy(generated_audio)
+        normalized_quality = quality_mos / 5.0  # Scale to 0-1
+        
+        # --- Final Equation ---
+        # Score = (Sim * 0.5) + (Quality * 0.3) - (WER * 0.2)
+        # Return negative because CMA minimizes
+        final_score = (sim_score * 0.5) + (normalized_quality * 0.3) - (wer_score * 0.2)
+        
+        return -final_score  # Negative for minimization
+    
+    def _predict_quality_proxy(self, audio: NDArray[np.float32]) -> float:
+        """
+        Simple quality proxy based on audio features.
+        In production, replace with NISQA or DNSMOS.
+        
+        Returns MOS score (1-5, higher is better)
+        """
+        # Use feature-based quality estimation
+        features = self.extract_features(audio)
+        
+        # Simple heuristic: penalize extreme values
+        quality = 5.0
+        
+        # Penalize very high zero crossing rate (noise)
+        if features["zero_crossing_rate"] > 0.2:
+            quality -= 1.0
+        
+        # Penalize very low RMS energy (too quiet)
+        if features["rms_energy"] < 0.01:
+            quality -= 0.5
+        
+        # Penalize very high spectral flatness (noise)
+        if features["spectral_flatness_mean"] > 0.8:
+            quality -= 1.0
+        
+        return max(1.0, min(5.0, quality))
 
     def target_similarity(self,audio: NDArray[np.float32]) -> float:
         audio_wav = preprocess_wav(audio,source_sr=24000)
