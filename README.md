@@ -1,7 +1,29 @@
 # KVoiceWalk
-KVoiceWalk creates new [Kokoro](https://github.com/hexgrad/kokoro) voice style tensors that clone target voices using advanced optimization algorithms and hybrid scoring methods. The project now supports both traditional random walk and professional CMA-ES optimization with advanced evaluation metrics.
+KVoiceWalk creates new [Kokoro](https://github.com/hexgrad/kokoro) voice style tensors that clone target voices using advanced optimization algorithms and hybrid scoring methods. The project now supports both traditional random walk and professional CMA-ES optimization with advanced evaluation metrics, including **specialized support for Latin American Spanish voice training**.
 
 This project is only possible because of the incredible work of projects like [Kokoro](https://github.com/hexgrad/kokoro) and [Resemblyzer](https://github.com/resemble-ai/Resemblyzer). I was struck by how small the Kokoro style tensors were and wondered if it would be possible to "evolve" new voice tensors more similar to target audio. The results are promising and this scoring method could be a valid option for a future genetic algorithm. I wanted more voice options for Kokoro, and now I have them.
+
+## 🆕 NEW: Latin American Spanish Support! 🇪🇸
+
+KVoiceWalk now includes **automatic detection and optimization** for Spanish language training:
+
+- **🎯 Automatic Language Detection**: Recognizes Spanish text and enables Spanish-optimized parameters
+- **📊 Spanish-Specific Scoring**: Rewards clear vowel pronunciation and syllable-timed rhythm
+- **🔤 Text Normalization**: Handles Spanish abbreviations and accent marks properly  
+- **🌎 Latin American Dialects**: Optimized for Mexican, Argentinian, Colombian, Caribbean, and other variants
+- **📖 Comprehensive Guide**: See [SPANISH_GUIDE.md](SPANISH_GUIDE.md) for detailed instructions
+
+### Quick Spanish Example:
+```bash
+uv run main.py \
+  --target_audio ./mi_voz.wav \
+  --target_text "Hola, ¿cómo estás? Me encanta hablar español." \
+  --use_cma_es \
+  --use_super_seed \
+  --step_limit 500
+```
+
+When Spanish is detected, you'll see Spanish-optimized training recommendations automatically!
 
 ## 🆕 NEW: CMA-ES Optimization!
 
@@ -245,6 +267,8 @@ uv run main.py --voices_folder ./voices --export_bin
 "--cma_sigma", type=float, help="CMA-ES initial step size (default: 0.1)", default=0.1
 
 "--use_advanced_scoring", help="Use WavLM/Whisper scoring (requires transformers, jiwer)", action='store_true'
+
+"--lang_code", type=str, help="Language code for TTS (a=auto-detect, es=Spanish, en=English)", default="a"
 
 ## Arguments for Test mode
 "--test_voice", type=str, help="Path to the voice tensor you want to test"
